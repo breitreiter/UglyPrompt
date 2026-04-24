@@ -9,11 +9,19 @@ public record CompletionHint(string Name, string Description);
 public class LineEditor
 {
     private readonly List<string> _history = new();
+    private readonly IConsoleAdapter _console;
     private bool _hintActive;
     private string? _lastHintContent;
 
     public List<CompletionHint> Commands { get; set; } = new();
     public List<CompletionHint> Kits { get; set; } = new();
+
+    public LineEditor() : this(new ConsoleAdapter()) { }
+
+    internal LineEditor(IConsoleAdapter console)
+    {
+        _console = console;
+    }
 
     public string? ReadLine(string prompt)
     {
@@ -51,18 +59,18 @@ public class LineEditor
 
     private string? ReadSingleLine(string prompt, bool enableGuards = true)
     {
-        Console.Write(prompt);
+        _console.Write(prompt);
 
         // Reserve a line below the prompt for ambient hints. Without this,
         // when the prompt lands on the last row the hint renders below the fold.
-        if (enableGuards && Console.CursorTop == Console.BufferHeight - 1)
+        if (enableGuards && _console.CursorTop == _console.BufferHeight - 1)
         {
-            var left = Console.CursorLeft;
-            Console.WriteLine();
-            Console.SetCursorPosition(left, Console.CursorTop - 1);
+            var left = _console.CursorLeft;
+            _console.WriteLine();
+            _console.SetCursorPosition(left, _console.CursorTop - 1);
         }
 
-        var handler = new KeyHandler(new ConsoleAdapter(), _history);
+        var handler = new KeyHandler(_console, _history);
         var keyInfo = Console.ReadKey(true);
 
         while (true)
@@ -100,7 +108,7 @@ public class LineEditor
         }
 
         ClearHintLine();
-        Console.WriteLine();
+        _console.WriteLine();
         var text = handler.Text;
         return string.IsNullOrWhiteSpace(text) ? null : text;
     }
@@ -172,45 +180,45 @@ public class LineEditor
         _lastHintContent = content;
     }
 
-    private static void RenderHintLine(string content)
+    private void RenderHintLine(string content)
     {
-        var savedLeft = Console.CursorLeft;
-        var savedTop = Console.CursorTop;
+        var savedLeft = _console.CursorLeft;
+        var savedTop = _console.CursorTop;
 
-        if (savedTop + 1 >= Console.BufferHeight) return;
+        if (savedTop + 1 >= _console.BufferHeight) return;
 
-        var width = Console.WindowWidth;
-        Console.Write("\u001b[?25l");
-        Console.SetCursorPosition(0, savedTop + 1);
-        Console.Write(new string(' ', width));
+        var width = _console.WindowWidth;
+        _console.Write("\u001b[?25l");
+        _console.SetCursorPosition(0, savedTop + 1);
+        _console.Write(new string(' ', width));
 
         if (content.Length > 0)
         {
-            Console.SetCursorPosition(0, savedTop + 1);
+            _console.SetCursorPosition(0, savedTop + 1);
             var maxLen = Math.Max(0, width - 4);
             if (content.Length > maxLen)
                 content = content[..Math.Max(0, maxLen - 1)] + "…";
-            Console.Write($"\u001b[90m  {content}\u001b[0m");
+            _console.Write($"\u001b[90m  {content}\u001b[0m");
         }
 
-        Console.SetCursorPosition(savedLeft, savedTop);
-        Console.Write("\u001b[?25h");
+        _console.SetCursorPosition(savedLeft, savedTop);
+        _console.Write("\u001b[?25h");
     }
 
     private void ClearHintLine()
     {
         if (!_hintActive) return;
 
-        var savedLeft = Console.CursorLeft;
-        var savedTop = Console.CursorTop;
+        var savedLeft = _console.CursorLeft;
+        var savedTop = _console.CursorTop;
 
-        if (savedTop + 1 < Console.BufferHeight)
+        if (savedTop + 1 < _console.BufferHeight)
         {
-            Console.Write("\u001b[?25l");
-            Console.SetCursorPosition(0, savedTop + 1);
-            Console.Write(new string(' ', Console.WindowWidth));
-            Console.SetCursorPosition(savedLeft, savedTop);
-            Console.Write("\u001b[?25h");
+            _console.Write("\u001b[?25l");
+            _console.SetCursorPosition(0, savedTop + 1);
+            _console.Write(new string(' ', _console.WindowWidth));
+            _console.SetCursorPosition(savedLeft, savedTop);
+            _console.Write("\u001b[?25h");
         }
 
         _hintActive = false;

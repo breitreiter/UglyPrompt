@@ -9,8 +9,11 @@ internal class ConsoleAdapter : IConsoleAdapter
     public int CursorTop => Console.CursorTop;
     public int BufferWidth => Console.BufferWidth;
     public int BufferHeight => Console.BufferHeight;
+    public int WindowWidth => Console.WindowWidth;
 
     public void SetCursorPosition(int left, int top) => Console.SetCursorPosition(left, top);
 
     public void Write(string value) => Console.Write(value);
+
+    public void WriteLine() => Console.WriteLine();
 }

@@ -1,30 +1,10 @@
 using UglyPrompt;
+using UglyPrompt.Tests.Testing;
 
 namespace UglyPrompt.Tests;
 
 public class KeyHandlerTests
 {
-    // --- test doubles ---
-
-    private class FakeConsole : IConsoleAdapter
-    {
-        public int CursorLeft { get; private set; }
-        public int CursorTop { get; private set; }
-        public int BufferWidth { get; init; } = 100;
-        public int BufferHeight { get; init; } = 40;
-
-        public void SetCursorPosition(int left, int top) { CursorLeft = left; CursorTop = top; }
-
-        public void Write(string value)
-        {
-            foreach (char c in value)
-            {
-                if (c == '\n') { CursorTop++; CursorLeft = 0; }
-                else if (++CursorLeft >= BufferWidth) { CursorLeft = 0; CursorTop++; }
-            }
-        }
-    }
-
     // --- helpers ---
 
     private static ConsoleKeyInfo Char(char c) =>
@@ -37,7 +17,7 @@ public class KeyHandlerTests
         new('\0', key, false, false, true);
 
     private KeyHandler Make(List<string>? history = null) =>
-        new KeyHandler(new FakeConsole(), history ?? new List<string>());
+        new KeyHandler(new GridConsole(), history ?? new List<string>());
 
     private KeyHandler Type(KeyHandler h, string text)
     {
@@ -457,44 +437,6 @@ public class KeyHandlerTests
 
     // --- soft-wrap + history regression repro ---
 
-    private class GridConsole : IConsoleAdapter
-    {
-        public int CursorLeft { get; set; }
-        public int CursorTop { get; set; }
-        public int BufferWidth { get; init; } = 10;
-        public int BufferHeight { get; init; } = 40;
-        private readonly char[,] _cells = new char[40, 10];
-
-        public GridConsole()
-        {
-            for (int r = 0; r < 40; r++)
-                for (int c = 0; c < 10; c++)
-                    _cells[r, c] = ' ';
-        }
-
-        public void SetCursorPosition(int left, int top) { CursorLeft = left; CursorTop = top; }
-
-        public void Write(string value)
-        {
-            foreach (char c in value)
-            {
-                if (c == '\n') { CursorTop++; CursorLeft = 0; }
-                else
-                {
-                    _cells[CursorTop, CursorLeft] = c;
-                    if (++CursorLeft >= BufferWidth) { CursorLeft = 0; CursorTop++; }
-                }
-            }
-        }
-
-        public string Row(int r)
-        {
-            var buf = new char[BufferWidth];
-            for (int c = 0; c < BufferWidth; c++) buf[c] = _cells[r, c];
-            return new string(buf);
-        }
-    }
-
     [Fact]
     public void UpArrow_AfterWordWrapMovedText_ClearsOrphanedCells()
     {
@@ -503,7 +445,7 @@ public class KeyHandlerTests
         // text on the prior row is left behind. ClearLine's Backspace walk
         // only revisits cells along the cursor path, so those "orphaned"
         // cells survive and the user sees old text alongside the new entry.
-        var console = new GridConsole();
+        var console = new GridConsole(10, 40);
         console.SetCursorPosition(2, 0);
         var h = new KeyHandler(console, new List<string> { "hi" });
 
@@ -512,7 +454,7 @@ public class KeyHandlerTests
         h.Handle(Key(ConsoleKey.UpArrow));
 
         Assert.Equal("hi", h.Text);
-        var allRows = string.Join("|", Enumerable.Range(0, 4).Select(r => console.Row(r)));
+        var allRows = string.Join("|", Enumerable.Range(0, 4).Select(r => console.RowAt(r)));
         var hiCount = System.Text.RegularExpressions.Regex.Matches(allRows, "hi").Count;
         Assert.Equal(1, hiCount);
         var withoutHi = allRows.Replace("hi", "  ");
@@ -526,7 +468,7 @@ public class KeyHandlerTests
         // sequence that wraps across 3 visual rows, then UpArrow to a short
         // history entry. Every row touched during typing should be erased, and
         // the new entry should appear exactly once.
-        var console = new GridConsole();
+        var console = new GridConsole(10, 40);
         console.SetCursorPosition(2, 0);
         var h = new KeyHandler(console, new List<string> { "hi" });
 
@@ -538,7 +480,7 @@ public class KeyHandlerTests
         h.Handle(Key(ConsoleKey.UpArrow));
 
         Assert.Equal("hi", h.Text);
-        var allRows = string.Join("|", new[] { console.Row(0), console.Row(1), console.Row(2) });
+        var allRows = string.Join("|", new[] { console.RowAt(0), console.RowAt(1), console.RowAt(2) });
         // Exactly one "hi" anywhere in those three rows, everything else spaces
         var hiCount = System.Text.RegularExpressions.Regex.Matches(allRows, "hi").Count;
         Assert.Equal(1, hiCount);

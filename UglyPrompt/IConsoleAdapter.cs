@@ -9,6 +9,8 @@ internal interface IConsoleAdapter
     int CursorTop { get; }
     int BufferWidth { get; }
     int BufferHeight { get; }
+    int WindowWidth { get; }
     void SetCursorPosition(int left, int top);
     void Write(string value);
+    void WriteLine();
 }
