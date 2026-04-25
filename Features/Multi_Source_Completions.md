@@ -73,9 +73,23 @@ Per the canonical doc:
 - Fuzzy matching. `StartsWith` remains the filter — fuzzy is a `Lookup`
   implementation choice if a consumer wants it.
 
+## Future considerations (post-0.3.0)
+
+`Lookup` is `Func<string, IReadOnlyList<CompletionHint>>` — synchronous,
+runs on every keystroke. Cheap for static lists; blocks the keystroke
+loop for sources that need real I/O (large-cwd file enumeration, network
+backends). The obvious next extension is a non-breaking async overload —
+`Func<string, CancellationToken, ValueTask<IReadOnlyList<CompletionHint>>>`,
+auto-cancelled when the next keystroke arrives, plus an optional
+`PlaceholderText` ("Searching…") rendered while the task is pending.
+Sync `Lookup` stays the simple case; consumers opt into async only when
+they need it. Flagged here so we don't accidentally close the door in
+0.3.0; not designed in detail.
+
 ## nb's role
 
-Until 0.3.0 ships to NuGet, nb continues to use its in-tree UglyPrompt
-0.2.x copy. Nothing happens in nb until 0.3.0 is published and verified;
-then nb's migration is straightforward (PackageReference swap, delete
-local copy, two-line per-source registration in `Program.cs`).
+nb has been migrated to PackageReference `UglyPrompt 0.2.2` (in-tree
+copy deleted). `Program.cs` still uses the 0.2.x `Commands` / `Kits`
+API. When 0.3.0 ships, nb's adoption is a version bump in `nb.csproj`
+plus a `Program.cs` edit to swap those properties for `AddSource(...)`
+registrations.
