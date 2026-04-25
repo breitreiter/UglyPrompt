@@ -1,6 +1,6 @@
 # UglyPrompt
 
-A no-frills readline-style console line editor for .NET. Backslash continuation, command completion hints, bracketed paste, and history — with no external dependencies.
+A no-frills readline-style console line editor for .NET. Backslash continuation, ambient completion hints, bracketed paste, and history — with no external dependencies.
 
 A permissively-licensed alternative to [PrettyPrompt](https://github.com/waf/PrettyPrompt).
 
@@ -18,7 +18,7 @@ var editor = new LineEditor();
 while (true)
 {
     string? input = editor.ReadLine(">> ");
-    if (input == null) break; // EOF or Ctrl+C
+    if (input == null) continue; // whitespace-only input
     Console.WriteLine(input);
 }
 ```
@@ -27,26 +27,33 @@ while (true)
 
 ## Completion Hints
 
-Populate `Commands` or `Kits` to enable hints for `/` and `+` prefixes:
+Register one or more `CompletionSource`s to enable ambient hint dispatch. Each source carries a trigger character, an anchor rule (`LineStart` or `WordStart`), and a `Lookup` callback that returns matching candidates for the body typed after the trigger:
 
 ```csharp
-var editor = new LineEditor
+var commands = new[]
 {
-    Commands =
-    [
-        new CompletionHint("/help",    "Show help"),
-        new CompletionHint("/history", "Show conversation history"),
-        new CompletionHint("/clear",   "Clear the screen"),
-    ],
-    Kits =
-    [
-        new CompletionHint("+core",  "Core tools"),
-        new CompletionHint("+files", "File tools"),
-    ],
+    new CompletionHint("/help",  "Show help"),
+    new CompletionHint("/clear", "Clear the screen"),
 };
+
+var editor = new LineEditor();
+
+editor.AddSource(new CompletionSource('/', TriggerAnchor.LineStart,
+    body => commands
+        .Where(c => c.Name.StartsWith("/" + body, StringComparison.OrdinalIgnoreCase))
+        .ToList()));
+
+editor.AddSource(new CompletionSource('@', TriggerAnchor.WordStart,
+    body => EnumerateMatchingFiles(body)));
 ```
 
-When the current line starts with `/` or `+`, a terse comma-separated list of matching names is shown on an ephemeral line below the input and filtered as the user types. The hint is display-only — the user still types the full command and presses Enter to submit. Editing (arrows, history, Ctrl+U/W, etc.) works normally throughout.
+When the cursor is preceded by a registered trigger satisfying its anchor, a terse comma-separated list of matching names from `Lookup` is shown on an ephemeral line below the input. Closer-to-cursor triggers win when multiple are present. The hint is display-only — the user still types the full input and presses Enter to submit. Editing (arrows, history, Ctrl+U/W, etc.) works normally throughout.
+
+`AddSource` rejects duplicate trigger chars; if you want to overload a trigger, combine candidates inside a single `Lookup` callback.
+
+`Lookup` runs synchronously on every keystroke. Cheap for static lists; if your source needs heavy I/O, gate it behind a body-length threshold (`body.Length < 3 ? [] : Search(body)`) or pre-cache.
+
+See [`UglyPrompt.Demo/Program.cs`](https://github.com/breitreiter/UglyPrompt/blob/main/UglyPrompt.Demo/Program.cs) for a runnable example wiring `/`, `+`, and `@` together.
 
 ## Features
 

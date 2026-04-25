@@ -5,9 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>UglyPrompt</PackageId>
-    <Version>0.2.2</Version>
+    <Version>0.3.0</Version>
     <Authors>Joseph Breitreiter</Authors>
-    <Description>A no-frills readline-style console line editor for .NET. Backslash continuation, command completion hints, bracketed paste, and history. A permissively-licensed alternative to PrettyPrompt.</Description>
+    <Description>A no-frills readline-style console line editor for .NET. Backslash continuation, ambient completion hints, bracketed paste, and history. A permissively-licensed alternative to PrettyPrompt.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/breitreiter/UglyPrompt</PackageProjectUrl>
     <RepositoryUrl>https://github.com/breitreiter/UglyPrompt</RepositoryUrl>
