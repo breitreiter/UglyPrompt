@@ -36,33 +36,31 @@ tracker — it's deletable once 0.3.0 ships.
   past entry, stranding the first).
 - Version bumped to 0.2.2 to mark the test-infrastructure work as a
   non-breaking checkpoint before the API change.
+- **Sources API landed.** `TriggerAnchor` enum, `CompletionSource`
+  record, `LineEditor.Sources` (read-only) + `AddSource(...)` which
+  rejects duplicate trigger chars. `Commands` and `Kits` removed
+  outright. `KeyHandler.CursorPosition` exposed. `RefreshHint`
+  rewritten to walk back from cursor; closest-to-cursor trigger
+  whose anchor predicate is satisfied wins.
+- **Snapshot tests landed** for line-start and word-start triggers,
+  empty-body, typing past candidate, backspacing past trigger,
+  closest-to-cursor disambiguation, and duplicate-trigger rejection.
+  `LineEditor.DriveKey` is the test seam. Soft-wrap+hint test
+  deferred (see "Future considerations").
+- **`UglyPrompt.Demo`** added; wires `/`, `+`, `@` against demo data
+  + cwd. README points at it as the runnable example.
+- **Version bumped to 0.3.0**, README rewritten, package description
+  updated.
 
 ## Next
 
-The remaining sequence inside this repo (no NuGet push until everything
-below is green):
+Code-side work is done. Remaining steps are manual:
 
-1. **Sources API.** Add `TriggerAnchor` enum (`LineStart`, `WordStart`),
-   `CompletionSource` record (`char Trigger`, anchor, `Func<string,
-   IReadOnlyList<CompletionHint>> Lookup`), and `LineEditor.Sources`.
-   Remove `Commands` and `Kits` outright — no `[Obsolete]` shims.
-2. **`KeyHandler.CursorPosition`.** Expose the cursor offset so
-   `LineEditor` can do word-start resolution.
-3. **`RefreshHint` rewrite.** Walk back from cursor through the text;
-   first trigger char that satisfies its anchor wins. Pass the body
-   (substring after the trigger up to the cursor) to `Lookup`. The
-   prefix-filter logic that lived inside `RefreshHint` moves into the
-   caller-supplied `Lookup`.
-4. **Snapshot tests** for: line-start triggers, word-start triggers,
-   typing past a candidate, hint clearing on token loss, soft-wrap
-   interactions with the hint strip. Use `GridConsole.Snapshot()` +
-   `Verify.Xunit`.
-5. **`UglyPrompt.Demo` project.** Tiny console app wiring all three
-   trigger types pre-configured (`/`, `+`, `@`) for cross-terminal
-   smoke-testing and as a runnable README example.
-6. **0.3.0 bump + README rewrite** to reflect the new API. Once green
-   here and through the manual cross-terminal matrix, `dotnet pack` and
-   `dotnet nuget push`.
+1. Cross-terminal validation by running `UglyPrompt.Demo` through the
+   matrix (Windows Terminal, cmd.exe, iTerm2, tmux at minimum).
+2. `dotnet pack -c Release` + `dotnet nuget push`. Tag the release.
+3. nb adoption: bump `nb.csproj` PackageReference to 0.3.0 and convert
+   `Program.cs` from `Commands` / `Kits` to `AddSource(...)` calls.
 
 ## Out of scope for 0.3.0
 
