@@ -1,20 +1,45 @@
 // UglyPrompt — a no-frills readline-style line editor for .NET console apps
 // Wraps vendored tonerdo/readline KeyHandler (MIT License)
-// Adds: backslash continuation, history, ambient completion hints for / and +
+// Adds: backslash continuation, history, ambient completion hints from
+// caller-registered sources keyed on a trigger char (e.g. /, +, @).
 
 namespace UglyPrompt;
 
 public record CompletionHint(string Name, string Description);
 
+public enum TriggerAnchor
+{
+    LineStart,
+    WordStart
+}
+
+public record CompletionSource(
+    char Trigger,
+    TriggerAnchor Anchor,
+    Func<string, IReadOnlyList<CompletionHint>> Lookup);
+
 public class LineEditor
 {
     private readonly List<string> _history = new();
     private readonly IConsoleAdapter _console;
+    private readonly List<CompletionSource> _sources = new();
     private bool _hintActive;
     private string? _lastHintContent;
 
-    public List<CompletionHint> Commands { get; set; } = new();
-    public List<CompletionHint> Kits { get; set; } = new();
+    public IReadOnlyList<CompletionSource> Sources => _sources;
+
+    // Each trigger char must be unique across registered sources. If you want
+    // to overload a trigger, combine the candidate lists inside your own
+    // Lookup callback — the library does not merge sources.
+    public void AddSource(CompletionSource source)
+    {
+        if (_sources.Any(s => s.Trigger == source.Trigger))
+            throw new ArgumentException(
+                $"A source for trigger '{source.Trigger}' is already registered. " +
+                "Combine candidates in a single Lookup callback to overload a trigger.",
+                nameof(source));
+        _sources.Add(source);
+    }
 
     public LineEditor() : this(new ConsoleAdapter()) { }
 
@@ -157,30 +182,47 @@ public class LineEditor
     {
         if (!enabled) return;
 
-        var text = handler.Text;
-        string? prefix = null;
-        List<CompletionHint>? items = null;
+        var (source, body) = FindActiveSource(handler.Text, handler.CursorPosition);
 
-        if (text.Length > 0)
-        {
-            if (text[0] == '/' && Commands.Count > 0) { prefix = "/"; items = Commands; }
-            else if (text[0] == '+' && Kits.Count > 0) { prefix = "+"; items = Kits; }
-        }
+        if (source == null) { ClearHintLine(); return; }
 
-        // No guard character — skip all cursor work unless we need to clear a stale hint.
-        if (prefix == null) { ClearHintLine(); return; }
-
-        var matches = items!
-            .Where(h => h.Name.StartsWith(prefix + text[1..], StringComparison.OrdinalIgnoreCase))
-            .Select(h => h.Name)
-            .ToList();
-        var content = matches.Count > 0 ? string.Join(", ", matches) : "";
+        var matches = source.Lookup(body);
+        var content = matches.Count > 0
+            ? string.Join(", ", matches.Select(m => m.Name))
+            : "";
 
         if (_hintActive && content == _lastHintContent) return;
 
         RenderHintLine(content);
         _hintActive = true;
         _lastHintContent = content;
+    }
+
+    // Walk back from the cursor through the text. The first position whose
+    // char is a registered trigger AND whose anchor predicate is satisfied
+    // wins — closest-to-cursor by construction. Returns (null, "") when no
+    // source applies at the current cursor.
+    private (CompletionSource? source, string body) FindActiveSource(string text, int cursorPos)
+    {
+        if (_sources.Count == 0 || cursorPos == 0) return (null, "");
+
+        for (int i = cursorPos - 1; i >= 0; i--)
+        {
+            var c = text[i];
+            foreach (var s in _sources)
+            {
+                if (s.Trigger != c) continue;
+                bool anchorOk = s.Anchor switch
+                {
+                    TriggerAnchor.LineStart => i == 0,
+                    TriggerAnchor.WordStart => i == 0 || char.IsWhiteSpace(text[i - 1]),
+                    _ => false
+                };
+                if (anchorOk)
+                    return (s, text.Substring(i + 1, cursorPos - i - 1));
+            }
+        }
+        return (null, "");
     }
 
     private void RenderHintLine(string content)

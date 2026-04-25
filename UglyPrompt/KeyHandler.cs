@@ -220,6 +220,7 @@ internal class KeyHandler
     }
 
     public string Text => _text.ToString();
+    public int CursorPosition => _cursorPos;
 
     public void InsertText(string text)
     {
