@@ -70,7 +70,10 @@ public class LineEditor
             _console.SetCursorPosition(left, _console.CursorTop - 1);
         }
 
-        var handler = new KeyHandler(_console, _history);
+        // On continuation lines (backslash-continued input), suppress history.
+        // Otherwise Up-arrow would replace the continuation line with a past
+        // entry, leaving the first line stranded above it.
+        var handler = new KeyHandler(_console, enableGuards ? _history : new List<string>());
         var keyInfo = Console.ReadKey(true);
 
         while (true)

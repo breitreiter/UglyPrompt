@@ -314,6 +314,17 @@ public class KeyHandlerTests
     }
 
     [Fact]
+    public void UpArrow_WithEmptyHistory_DoesNotTouchCurrentText()
+    {
+        // Soft-newline regression: LineEditor passes an empty history on
+        // continuation lines so Up-arrow can't replace what the user typed.
+        var h = Make();
+        Type(h, "partial");
+        h.Handle(Key(ConsoleKey.UpArrow));
+        Assert.Equal("partial", h.Text);
+    }
+
+    [Fact]
     public void CtrlP_BehavesLikeUpArrow()
     {
         var h = Make(new List<string> { "old command" });
