@@ -482,3 +482,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Verify.Xunit received snapshots (verified snapshots are committed)
+*.received.*

@@ -86,6 +86,16 @@ Sync `Lookup` stays the simple case; consumers opt into async only when
 they need it. Flagged here so we don't accidentally close the door in
 0.3.0; not designed in detail.
 
+A second pre-existing issue surfaced during 0.3.0 snapshot test work:
+when typed input wraps to a new row, the hint strip rendered on the
+old row gets partially overwritten by the wrap content (rendering
+`moreample` instead of clean `more` + clean hint below). Root cause is
+the hint-render optimization skipping re-render when content is
+unchanged across cursor-row changes; clean fix requires coordination
+between `KeyHandler`'s wrap path and `LineEditor`'s hint state. Out of
+scope for 0.3.0; soft-wrap snapshot test deferred until the underlying
+fix lands.
+
 ## nb's role
 
 nb has been migrated to PackageReference `UglyPrompt 0.2.2` (in-tree

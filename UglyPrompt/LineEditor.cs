@@ -178,6 +178,14 @@ public class LineEditor
         return content.ToString();
     }
 
+    // Test seam: drive a single keystroke through the same pipeline
+    // ReadSingleLine uses, without requiring real Console.ReadKey input.
+    internal void DriveKey(KeyHandler handler, ConsoleKeyInfo key)
+    {
+        handler.Handle(key);
+        RefreshHint(handler, enabled: true);
+    }
+
     private void RefreshHint(KeyHandler handler, bool enabled)
     {
         if (!enabled) return;
