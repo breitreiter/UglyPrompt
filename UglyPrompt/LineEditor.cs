@@ -20,7 +20,11 @@ public record CompletionSource(
 
 public class LineEditor
 {
-    private readonly List<string> _history = new();
+    // Display is the single-line form rendered in the editor (multi-line
+    // entries are flattened with " \ " between segments). Stored is the
+    // original text returned from ReadLine — restored if the user recalls
+    // and submits the entry without editing.
+    private readonly List<(string Display, string Stored)> _history = new();
     private readonly IConsoleAdapter _console;
     private readonly List<CompletionSource> _sources = new();
     private bool _hintActive;
@@ -53,6 +57,18 @@ public class LineEditor
         var line = ReadSingleLine(prompt);
         if (line == null) return null;
 
+        // If the user recalled a multi-line entry from history and submitted
+        // it unchanged, restore the original embedded newlines. Walk newest-
+        // first so the most recent matching entry wins.
+        for (int i = _history.Count - 1; i >= 0; i--)
+        {
+            if (_history[i].Display == line)
+            {
+                line = _history[i].Stored;
+                break;
+            }
+        }
+
         // Backslash continuation
         if (line.EndsWith('\\'))
         {
@@ -78,7 +94,8 @@ public class LineEditor
 
         if (string.IsNullOrWhiteSpace(line)) return null;
 
-        _history.Add(line.Contains('\n') ? line.Split('\n')[0] + "..." : line);
+        var display = line.Contains('\n') ? line.Replace("\n", " \\ ") : line;
+        _history.Add((display, line));
         return line;
     }
 
@@ -98,7 +115,10 @@ public class LineEditor
         // On continuation lines (backslash-continued input), suppress history.
         // Otherwise Up-arrow would replace the continuation line with a past
         // entry, leaving the first line stranded above it.
-        var handler = new KeyHandler(_console, enableGuards ? _history : new List<string>());
+        var handlerHistory = enableGuards
+            ? _history.Select(e => e.Display).ToList()
+            : new List<string>();
+        var handler = new KeyHandler(_console, handlerHistory);
         var keyInfo = Console.ReadKey(true);
 
         while (true)

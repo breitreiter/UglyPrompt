@@ -37,11 +37,12 @@ editor.AddSource(new CompletionSource('@', TriggerAnchor.WordStart,
         .Select(n => new CompletionHint(n, ""))
         .ToList()));
 
-Console.WriteLine("UglyPrompt demo. Try /, +, or @ to see hints. Empty line to exit.");
+Console.WriteLine("UglyPrompt demo. Try /, +, or @ to see hints. /quit or empty line to exit.");
 
 while (true)
 {
     var line = editor.ReadLine("> ");
     if (line == null) break;
+    if (line.Trim().Equals("/quit", StringComparison.OrdinalIgnoreCase)) break;
     Console.WriteLine($"  echo: {line}");
 }
